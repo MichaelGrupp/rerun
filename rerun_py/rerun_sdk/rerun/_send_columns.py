@@ -96,30 +96,18 @@ class TimeColumn(TimeColumnLike):
         if sequence is not None:
             self.times = pa.array(sequence, pa.int64())
         elif duration is not None:
-            if isinstance(duration, np.ndarray):
-                if np.issubdtype(duration.dtype, np.timedelta64):
-                    # Already a timedelta array, just ensure it's in nanoseconds
-                    self.times = pa.array(duration.astype("timedelta64[ns]"), pa.duration("ns"))
-                elif np.issubdtype(duration.dtype, np.number):
-                    # Numeric array that needs conversion to nanoseconds
-                    self.times = pa.array((duration * 1e9).astype("timedelta64[ns]"), pa.duration("ns"))
-                else:
-                    raise TypeError(f"Unsupported numpy array dtype: {duration.dtype}")
+            if isinstance(duration, np.ndarray) and np.issubdtype(duration.dtype, np.timedelta64):
+                # Already a timedelta array, just ensure it's in nanoseconds
+                self.times = pa.array(duration.astype("timedelta64[ns]"), pa.duration("ns"))
             else:
                 self.times = pa.array(
                     [np.int64(to_nanos(duration)).astype("timedelta64[ns]") for duration in duration], pa.duration("ns")
                 )
         elif timestamp is not None:
             # TODO(zehiko) add back timezone support (#9310)
-            if isinstance(timestamp, np.ndarray):
-                if np.issubdtype(timestamp.dtype, np.datetime64):
-                    # Already a datetime array, just ensure it's in nanoseconds
-                    self.times = pa.array(timestamp.astype("datetime64[ns]"), pa.timestamp("ns"))
-                elif np.issubdtype(timestamp.dtype, np.number):
-                    # Numeric array that needs conversion to nanoseconds
-                    self.times = pa.array((timestamp * 1e9).astype("datetime64[ns]"), pa.timestamp("ns"))
-                else:
-                    raise TypeError(f"Unsupported numpy array dtype: {timestamp.dtype}")
+            if isinstance(timestamp, np.ndarray) and np.issubdtype(timestamp.dtype, np.datetime64):
+                # Already a datetime array, just ensure it's in nanoseconds
+                self.times = pa.array(timestamp.astype("datetime64[ns]"), pa.timestamp("ns"))
             else:
                 self.times = pa.array(
                     [np.int64(to_nanos_since_epoch(timestamp)).astype("datetime64[ns]") for timestamp in timestamp],
