@@ -507,6 +507,14 @@ impl<'a, 'ctx> LineStripBuilder<'a, 'ctx> {
     #[inline]
     pub fn color(mut self, color: Color32) -> Self {
         self.strip.color = color.into();
+
+        // Track transparency in the current batch
+        if color.a() < 255 {
+            if let Some(batch) = self.builder.batches.last_mut() {
+                batch.has_any_transparent = true;
+            }
+        }
+
         self
     }
 

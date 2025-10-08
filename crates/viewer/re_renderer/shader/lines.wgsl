@@ -354,7 +354,8 @@ fn fs_main(in: VertexOut) -> @location(0) vec4f {
         shading = max(0.2, 1.0 - distance_to_inner / (in.rounded_inner_line_radius * in.rounded_inner_line_radius)) * 0.9;
     }
 
-    return vec4f(in.color.rgb * shading, coverage);
+    // Final alpha is user-defined alpha modulated by anti-aliasing coverage.
+    return vec4f(in.color.rgb * shading, in.color.a * coverage);
 }
 
 @fragment

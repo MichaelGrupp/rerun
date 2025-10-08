@@ -25,6 +25,8 @@ table LineStrips3D (
   radii: [rerun.components.Radius] ("attr.rerun.component_recommended", nullable, order: 2000);
 
   /// Optional colors for the line strips.
+  ///
+  /// Alpha channel is used for transparency.
   colors: [rerun.components.Color] ("attr.rerun.component_recommended", nullable, order: 2100);
 
   // --- Optional ---

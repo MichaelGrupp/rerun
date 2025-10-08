@@ -108,6 +108,8 @@ pub struct LineStrips3D {
     pub radii: Option<SerializedComponentBatch>,
 
     /// Optional colors for the line strips.
+    ///
+    /// Alpha channel is used for transparency.
     pub colors: Option<SerializedComponentBatch>,
 
     /// Optional text labels for the line strips.
@@ -471,6 +473,8 @@ impl LineStrips3D {
     }
 
     /// Optional colors for the line strips.
+    ///
+    /// Alpha channel is used for transparency.
     #[inline]
     pub fn with_colors(
         mut self,

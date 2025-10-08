@@ -134,7 +134,7 @@ pub mod gpu_data {
     #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
     pub struct LineStripInfo {
         /// [`ecolor::Color32`] is `repr(align(4))` so we can't use it in `repr(packed)`.
-        pub color: UnalignedColor32, // alpha unused right now
+        pub color: UnalignedColor32, // alpha channel is used for transparency
         pub stippling: u8,
         pub flags: LineStripFlags,
         pub radius: SizeHalf,
@@ -313,6 +313,9 @@ pub struct LineBatchInfo {
     /// This controls how wide the triangle/arrow-head is orthogonal to the line's direction.
     /// (defaults to 2.0)
     pub triangle_cap_width_factor: f32,
+
+    /// Whether this batch contains any line strips with transparency.
+    pub has_any_transparent: bool,
 }
 
 impl Default for LineBatchInfo {
@@ -327,6 +330,7 @@ impl Default for LineBatchInfo {
             depth_offset: 0,
             triangle_cap_length_factor: 4.0,
             triangle_cap_width_factor: 2.0,
+            has_any_transparent: false,
         }
     }
 }
@@ -504,7 +508,13 @@ impl LineDrawData {
                 let line_vertex_range_end = (start_vertex_for_next_batch
                     + batch_info.line_vertex_count)
                     .min(max_num_vertices as u32);
-                let mut active_phases = enum_set![DrawPhase::Opaque | DrawPhase::PickingLayer];
+                let mut active_phases = enum_set![DrawPhase::PickingLayer];
+                // Add appropriate draw phase based on transparency
+                if batch_info.has_any_transparent {
+                    active_phases.insert(DrawPhase::Transparent);
+                } else {
+                    active_phases.insert(DrawPhase::Opaque);
+                }
                 // Does the entire batch participate in the outline mask phase?
                 if batch_info.overall_outline_mask_ids.is_some() {
                     active_phases.insert(DrawPhase::OutlineMask);
@@ -542,6 +552,7 @@ impl LineDrawData {
 
 pub struct LineRenderer {
     render_pipeline_color: GpuRenderPipelineHandle,
+    render_pipeline_transparent: GpuRenderPipelineHandle,
     render_pipeline_picking_layer: GpuRenderPipelineHandle,
     render_pipeline_outline_mask: GpuRenderPipelineHandle,
     bind_group_layout_all_lines: GpuBindGroupLayoutHandle,
@@ -704,6 +715,23 @@ impl Renderer for LineRenderer {
                 ..render_pipeline_desc_color.clone()
             },
         );
+        let render_pipeline_transparent = render_pipelines.get_or_create(
+            ctx,
+            &RenderPipelineDesc {
+                label: "LineRenderer::render_pipeline_transparent".into(),
+                render_targets: smallvec![Some(wgpu::ColorTargetState {
+                    format: ViewBuilder::MAIN_TARGET_COLOR_FORMAT,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                depth_stencil: Some(ViewBuilder::MAIN_TARGET_DEFAULT_DEPTH_STATE_NO_WRITE),
+                multisample: ViewBuilder::main_target_default_msaa_state(
+                    ctx.render_config(),
+                    false,
+                ),
+                ..render_pipeline_desc_color.clone()
+            },
+        );
         let render_pipeline_outline_mask = render_pipelines.get_or_create(
             ctx,
             &RenderPipelineDesc {
@@ -727,6 +755,7 @@ impl Renderer for LineRenderer {
 
         Self {
             render_pipeline_color,
+            render_pipeline_transparent,
             render_pipeline_picking_layer,
             render_pipeline_outline_mask,
             bind_group_layout_all_lines,
@@ -744,6 +773,7 @@ impl Renderer for LineRenderer {
         let pipeline_handle = match phase {
             DrawPhase::OutlineMask => self.render_pipeline_outline_mask,
             DrawPhase::Opaque => self.render_pipeline_color,
+            DrawPhase::Transparent => self.render_pipeline_transparent,
             DrawPhase::PickingLayer => self.render_pipeline_picking_layer,
             _ => unreachable!("We were called on a phase we weren't subscribed to: {phase:?}"),
         };
@@ -758,7 +788,9 @@ impl Renderer for LineRenderer {
         {
             let bind_group_draw_data = match phase {
                 DrawPhase::OutlineMask => &draw_data.bind_group_all_lines_outline_mask,
-                DrawPhase::Opaque | DrawPhase::PickingLayer => &draw_data.bind_group_all_lines,
+                DrawPhase::Opaque | DrawPhase::Transparent | DrawPhase::PickingLayer => {
+                    &draw_data.bind_group_all_lines
+                }
                 _ => unreachable!("We were called on a phase we weren't subscribed to: {phase:?}"),
             };
             let Some(bind_group_draw_data) = bind_group_draw_data else {

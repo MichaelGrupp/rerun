@@ -136,6 +136,8 @@ class LineStrips3D(Archetype):
             Optional radii for the line strips.
         colors:
             Optional colors for the line strips.
+
+            Alpha channel is used for transparency.
         labels:
             Optional text labels for the line strips.
 
@@ -204,6 +206,8 @@ class LineStrips3D(Archetype):
             Optional radii for the line strips.
         colors:
             Optional colors for the line strips.
+
+            Alpha channel is used for transparency.
         labels:
             Optional text labels for the line strips.
 
@@ -273,6 +277,8 @@ class LineStrips3D(Archetype):
             Optional radii for the line strips.
         colors:
             Optional colors for the line strips.
+
+            Alpha channel is used for transparency.
         labels:
             Optional text labels for the line strips.
 
@@ -366,6 +372,8 @@ class LineStrips3D(Archetype):
         converter=components.ColorBatch._converter,  # type: ignore[misc]
     )
     # Optional colors for the line strips.
+    #
+    # Alpha channel is used for transparency.
     #
     # (Docstring intentionally commented out to hide this field from the docs)
 
